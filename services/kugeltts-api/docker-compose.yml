@@ -13,17 +13,23 @@ services:
       KUGEL_MODEL_ID: ${KUGEL_MODEL_ID:-/app/models/kugelaudio-0-open}
       KUGEL_ALLOW_HF: ${KUGEL_ALLOW_HF:-false}
       KUGEL_HF_REPO_ID: ${KUGEL_HF_REPO_ID:-kugelaudio/kugelaudio-0-open}
+      KUGEL_HF_REVISION: ${KUGEL_HF_REVISION:-}
       TORCH_DTYPE: ${TORCH_DTYPE:-bfloat16}
       KUGEL_MAX_NEW_TOKENS: ${KUGEL_MAX_NEW_TOKENS:-4096}
       HF_HOME: ${HF_HOME:-/app/hf-cache}
+      HF_HUB_CACHE: ${HF_HUB_CACHE:-/app/hf-cache/hub}
+      TRANSFORMERS_CACHE: ${TRANSFORMERS_CACHE:-/app/hf-cache/transformers}
     volumes:
       - ${KUGEL_MODEL_DIR:-../../models}:/app/models:ro
-      - ${HF_HOME_HOST:-./hf-cache}:/app/hf-cache
-    expose:
-      - "8000"
+      - ${HF_HOME_HOST:-hf-cache}:/app/hf-cache
+    ports:
+      - "127.0.0.1:8020:8000"
     networks:
       - evido-live-translate
 
 networks:
   evido-live-translate:
     external: true
+
+volumes:
+  hf-cache:
