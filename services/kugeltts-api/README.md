@@ -6,7 +6,7 @@ FastAPI service that exposes KugelAudio TTS on `/v1/audio/speech` with GPU suppo
 
 - **Local-first model loading**: the service defaults to `local_files_only=True` and expects a model directory mounted at `/app/models`. This avoids any Hugging Face downloads and allows offline startup. If `KUGEL_ALLOW_HF=true`, the service can fall back to a Hugging Face repo when the local path is missing.
 - **GPU pinning**: CUDA runtime is enabled and `NVIDIA_VISIBLE_DEVICES` controls which GPU(s) are visible to the container.
-- **Security**: the container runs as a non-root user and does not publish ports by default (internal network only). If you need host access, add a `ports` mapping explicitly. Hugging Face cache paths must be writable by the container user.
+- **Security**: the container runs as a non-root user. The default compose file publishes the API on `127.0.0.1:8020` for local testing; adjust or remove the port mapping if you only want internal network access. Hugging Face cache paths must be writable by the container user.
 
 ## Model layout (local, offline)
 
@@ -39,8 +39,11 @@ cp .env.example .env
 - `KUGEL_MODEL_DIR` (default: `../../models` on host, mounted to `/app/models`)
 - `KUGEL_ALLOW_HF` (default: `false`)
 - `KUGEL_HF_REPO_ID` (default: `kugelaudio/kugelaudio-0-open`)
+- `KUGEL_HF_REVISION` (default: empty, uses default branch)
 - `HF_HOME` (default: `/app/hf-cache` in container)
-- `HF_HOME_HOST` (default: `./hf-cache` on host)
+- `HF_HOME_HOST` (default: `hf-cache` named volume on host)
+- `HF_HUB_CACHE` (default: `/app/hf-cache/hub`)
+- `TRANSFORMERS_CACHE` (default: `/app/hf-cache/transformers`)
 - `TORCH_DTYPE` (default: `bfloat16`, falls back to `float32` on CPU)
 - `NVIDIA_VISIBLE_DEVICES` (default: `all`)
 - `KUGEL_MAX_NEW_TOKENS` (default: `4096`)
@@ -63,7 +66,7 @@ Response: `audio/wav` bytes.
 
 ## Compose (Evido network)
 
-This compose file connects to the external `evido-live-translate` network and exposes port 8000 only inside the Docker network.
+This compose file connects to the external `evido-live-translate` network and publishes the API to `127.0.0.1:8020` on the host for local testing.
 
 ```bash
 cd services/kugeltts-api
@@ -120,6 +123,7 @@ If you need Hugging Face fallback, allow it explicitly and mount a cache:
 ```bash
 KUGEL_ALLOW_HF=true \
 KUGEL_HF_REPO_ID=kugelaudio/kugelaudio-0-open \
+KUGEL_HF_REVISION=main \
 HF_HOME_HOST=./hf-cache \
 docker compose up -d
 ```

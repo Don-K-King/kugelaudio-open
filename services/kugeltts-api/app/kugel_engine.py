@@ -46,6 +46,7 @@ class KugelEngine:
         self.model_id = os.getenv("KUGEL_MODEL_ID", "/app/models/kugelaudio-0-open")
         self.hf_repo_id = os.getenv("KUGEL_HF_REPO_ID", "kugelaudio/kugelaudio-0-open")
         self.hf_home = os.getenv("HF_HOME", "/app/hf-cache")
+        self.hf_revision = os.getenv("KUGEL_HF_REVISION") or None
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.dtype = _resolve_dtype(self.device, os.getenv("TORCH_DTYPE"))
         self.allow_hf = _bool_env("KUGEL_ALLOW_HF", False)
@@ -53,25 +54,39 @@ class KugelEngine:
         self.model = None
         self.processor = None
 
-    def _try_prepare_hf_cache(self, hf_home: Path) -> bool:
+    def _configure_hf_env(self, hf_home: Path) -> tuple[Path, Path]:
         hub_dir = hf_home / "hub"
+        transformers_dir = hf_home / "transformers"
+        os.environ["HF_HOME"] = str(hf_home)
+        os.environ["HF_HUB_CACHE"] = str(hub_dir)
+        os.environ["TRANSFORMERS_CACHE"] = str(transformers_dir)
+        self.hf_home = str(hf_home)
+        return hub_dir, transformers_dir
+
+    def _try_prepare_hf_cache(self, hf_home: Path) -> bool:
+        hub_dir, transformers_dir = self._configure_hf_env(hf_home)
         try:
             hub_dir.mkdir(parents=True, exist_ok=True)
+            transformers_dir.mkdir(parents=True, exist_ok=True)
             test_file = hub_dir / ".write_test"
+            test_file.write_text("ok")
+            test_file.unlink(missing_ok=True)
+            test_file = transformers_dir / ".write_test"
             test_file.write_text("ok")
             test_file.unlink(missing_ok=True)
         except OSError:
             return False
-
-        os.environ.setdefault("HF_HOME", str(hf_home))
-        os.environ.setdefault("HF_HUB_CACHE", str(hub_dir))
-        os.environ.setdefault("TRANSFORMERS_CACHE", str(hf_home))
-        self.hf_home = str(hf_home)
         return True
 
     def _ensure_hf_cache(self) -> None:
         primary = Path(self.hf_home).expanduser()
         if self._try_prepare_hf_cache(primary):
+            logger.info(
+                "HF cache ready at %s (hub=%s, transformers=%s)",
+                primary,
+                primary / "hub",
+                primary / "transformers",
+            )
             return
 
         fallback = Path("/tmp/hf-cache")
@@ -84,39 +99,48 @@ class KugelEngine:
             raise RuntimeError(
                 f"HF cache directory is not writable: {primary} or {fallback}"
             )
+        logger.info(
+            "HF cache ready at %s (hub=%s, transformers=%s)",
+            fallback,
+            fallback / "hub",
+            fallback / "transformers",
+        )
+
+    def _looks_like_local_path(self, model_id: str) -> bool:
+        return os.path.isabs(model_id) or model_id.startswith(("./", "../"))
 
     def _resolve_model_source(self) -> tuple[str, bool, str]:
-        candidate = Path(self.model_id).expanduser()
-        is_path = candidate.is_absolute() or candidate.exists()
-        if is_path and candidate.exists():
+        if self._looks_like_local_path(self.model_id):
+            candidate = Path(self.model_id).expanduser()
+            if not candidate.exists():
+                raise RuntimeError(
+                    f"Local model path not found: {candidate}. "
+                    "Mount the model directory or update KUGEL_MODEL_ID."
+                )
             logger.info("Local model path exists: %s", candidate)
             return str(candidate), True, "local"
 
-        if is_path and not candidate.exists():
-            if self.allow_hf:
-                logger.warning(
-                    "Local model path not found: %s. Falling back to HF repo %s.",
-                    candidate,
-                    self.hf_repo_id,
-                )
-                return self.hf_repo_id, False, "hf"
+        if not self.allow_hf:
             raise RuntimeError(
-                f"Local model path not found: {candidate}. "
+                f"Model '{self.model_id}' is not a local path and HF fallback is disabled. "
                 "Set KUGEL_ALLOW_HF=true or mount models."
             )
 
-        if self.allow_hf:
-            return self.model_id, False, "hf"
-
-        raise RuntimeError(
-            f"Model '{self.model_id}' is not a local path and HF fallback is disabled. "
-            "Set KUGEL_ALLOW_HF=true or mount models."
-        )
+        repo_id = self.model_id
+        if "/" not in repo_id:
+            repo_id = self.hf_repo_id
+            logger.warning(
+                "KUGEL_MODEL_ID=%s does not look like a repo id; using KUGEL_HF_REPO_ID=%s",
+                self.model_id,
+                repo_id,
+            )
+        return repo_id, False, "hf"
 
     def load(self) -> None:
         from kugelaudio_open.models import KugelAudioForConditionalGenerationInference
         from kugelaudio_open.processors import KugelAudioProcessor
 
+        self._ensure_hf_cache()
         model_source, local_files_only, source_label = self._resolve_model_source()
         logger.info(
             "KugelAudio model id=%s, resolved_source=%s (%s)",
@@ -125,7 +149,12 @@ class KugelEngine:
             source_label,
         )
         logger.info(
-            "HF allow=%s, HF_HOME=%s", self.allow_hf, self.hf_home
+            "HF allow=%s, HF_HOME=%s, HF_HUB_CACHE=%s, TRANSFORMERS_CACHE=%s, HF revision=%s",
+            self.allow_hf,
+            os.environ.get("HF_HOME"),
+            os.environ.get("HF_HUB_CACHE"),
+            os.environ.get("TRANSFORMERS_CACHE"),
+            self.hf_revision or "default",
         )
         logger.info(
             "CUDA available=%s, device=%s", torch.cuda.is_available(), self.device
@@ -136,9 +165,6 @@ class KugelEngine:
             except Exception as exc:
                 logger.warning("Failed to read CUDA device name: %s", exc)
 
-        if not local_files_only:
-            self._ensure_hf_cache()
-
         model_kwargs = {
             "torch_dtype": self.dtype,
             "low_cpu_mem_usage": False,
@@ -146,6 +172,8 @@ class KugelEngine:
             "device_map": None,
             "local_files_only": local_files_only,
         }
+        if self.hf_revision and not local_files_only:
+            model_kwargs["revision"] = self.hf_revision
 
         if self.device == "cuda":
             model_kwargs["attn_implementation"] = "flash_attention_2"
@@ -170,9 +198,12 @@ class KugelEngine:
         model.eval()
         model.model.strip_encoders()
 
+        processor_kwargs = {"local_files_only": local_files_only}
+        if self.hf_revision and not local_files_only:
+            processor_kwargs["revision"] = self.hf_revision
         processor = KugelAudioProcessor.from_pretrained(
             model_source,
-            local_files_only=local_files_only,
+            **processor_kwargs,
         )
 
         self.model = model
