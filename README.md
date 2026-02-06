@@ -127,6 +127,7 @@ Get started with KugelAudio quickly using our documentation:
 | 🎭 [**Voices**](#voices) | Use pre-encoded voices for different speakers |
 | ☁️ [**Hosted API**](#hosted-api) | Use our cloud API for zero-setup inference |
 | 🔒 [**Watermarking**](#audio-watermarking) | Verify AI-generated audio |
+| 🚀 [**KugelTTS API Service**](#kugeltts-api-service) | Run FastAPI TTS service with Docker + GPU |
 | 📦 [**Models**](#models) | Available model variants and benchmarks |
 
 ---
@@ -266,6 +267,18 @@ processor.save_audio(outputs.speech_outputs[0], "warm_voice_output.wav")
 ```
 
 > **Note:** Voice cloning from raw audio is not supported in this open-source release. Only the pre-encoded voices listed in `voices/voices.json` are available.
+
+## KugelTTS API Service
+
+For production deployment (GPU + Docker + Evido network integration), use the FastAPI service located at:
+
+```
+services/kugeltts-api/
+```
+
+The service is local-first (no Hugging Face downloads by default), exposes `/health` and `/v1/audio/speech`, and supports GPU pinning via `NVIDIA_VISIBLE_DEVICES`. See the service README for setup, environment variables, and compose usage:
+
+- `services/kugeltts-api/README.md`
 
 ## Hosted API
 

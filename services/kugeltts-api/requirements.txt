@@ -1,0 +1,20 @@
+--extra-index-url https://download.pytorch.org/whl/cu128
+
+torch==2.7.0+cu128
+torchaudio==2.7.0+cu128
+
+transformers==4.50.3
+accelerate==1.2.1
+diffusers==0.32.2
+
+numpy==2.1.2
+scipy==1.13.1
+librosa==0.10.2.post1
+soundfile==0.12.1
+
+fastapi==0.115.7
+uvicorn[standard]==0.30.6
+
+tqdm==4.67.1
+audioseal==0.1.0
+safetensors==0.5.2

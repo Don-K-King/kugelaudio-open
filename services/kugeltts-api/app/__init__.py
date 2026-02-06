@@ -1,0 +1,1 @@
+"""KugelTTS FastAPI package."""
