@@ -29,6 +29,7 @@ RUN python /app/scripts/patch_tokenizer_meta_tensor.py /app/src/kugelaudio_open/
 COPY services/kugeltts-api/app /app/services/kugeltts-api/app
 
 RUN useradd -m appuser \
+    && mkdir -p /app/hf-cache \
     && chown -R appuser:appuser /app
 
 USER appuser
