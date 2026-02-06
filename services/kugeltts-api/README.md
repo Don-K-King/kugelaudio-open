@@ -4,9 +4,9 @@ FastAPI service that exposes KugelAudio TTS on `/v1/audio/speech` with GPU suppo
 
 ## Architecture notes
 
-- **Local-first model loading**: the service defaults to `local_files_only=True` and expects a model directory mounted at `/app/models`. This avoids any Hugging Face downloads and allows offline startup.
+- **Local-first model loading**: the service defaults to `local_files_only=True` and expects a model directory mounted at `/app/models`. This avoids any Hugging Face downloads and allows offline startup. If `KUGEL_ALLOW_HF=true`, the service can fall back to a Hugging Face repo when the local path is missing.
 - **GPU pinning**: CUDA runtime is enabled and `NVIDIA_VISIBLE_DEVICES` controls which GPU(s) are visible to the container.
-- **Security**: the container runs as a non-root user and does not publish ports by default (internal network only). If you need host access, add a `ports` mapping explicitly.
+- **Security**: the container runs as a non-root user and does not publish ports by default (internal network only). If you need host access, add a `ports` mapping explicitly. Hugging Face cache paths must be writable by the container user.
 
 ## Model layout (local, offline)
 
@@ -38,6 +38,7 @@ cp .env.example .env
 - `KUGEL_MODEL_ID` (default: `/app/models/kugelaudio-0-open`)
 - `KUGEL_MODEL_DIR` (default: `../../models` on host, mounted to `/app/models`)
 - `KUGEL_ALLOW_HF` (default: `false`)
+- `KUGEL_HF_REPO_ID` (default: `kugelaudio/kugelaudio-0-open`)
 - `HF_HOME` (default: `/app/hf-cache` in container)
 - `HF_HOME_HOST` (default: `./hf-cache` on host)
 - `TORCH_DTYPE` (default: `bfloat16`, falls back to `float32` on CPU)
@@ -118,9 +119,12 @@ If you need Hugging Face fallback, allow it explicitly and mount a cache:
 
 ```bash
 KUGEL_ALLOW_HF=true \
+KUGEL_HF_REPO_ID=kugelaudio/kugelaudio-0-open \
 HF_HOME_HOST=./hf-cache \
 docker compose up -d
 ```
+
+The service will create `HF_HOME` automatically and verify it is writable. If the configured cache path is not writable (for example due to a root-owned bind mount), it falls back to `/tmp/hf-cache` with a warning. For persistent cache, prefer a named volume or ensure the host path is owned by the container user.
 
 ## Logs / stop
 
