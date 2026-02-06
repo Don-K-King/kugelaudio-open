@@ -80,6 +80,48 @@ curl -X POST http://kugeltts-api:8000/v1/audio/speech \
   --output out.wav
 ```
 
+## Local build & run (PEP 668-safe)
+
+The image installs dependencies into a dedicated virtual environment (`/opt/venv`) to avoid the Ubuntu 24.04 PEP 668 restriction on system Python packages.
+
+```bash
+cd services/kugeltts-api
+docker compose build --no-cache --pull
+docker compose up -d
+```
+
+### GPU pinning examples
+
+Pin to the first GPU:
+
+```bash
+NVIDIA_VISIBLE_DEVICES=0 docker compose up -d
+```
+
+Pin to a specific GPU UUID:
+
+```bash
+NVIDIA_VISIBLE_DEVICES=GPU-12345678-1234-1234-1234-123456789abc docker compose up -d
+```
+
+### Offline model mounts & HF fallback
+
+By default the container expects a local model mount at `/app/models` via `KUGEL_MODEL_DIR`:
+
+```bash
+KUGEL_MODEL_DIR=../../models \
+KUGEL_MODEL_ID=/app/models/kugelaudio-0-open \
+docker compose up -d
+```
+
+If you need Hugging Face fallback, allow it explicitly and mount a cache:
+
+```bash
+KUGEL_ALLOW_HF=true \
+HF_HOME_HOST=./hf-cache \
+docker compose up -d
+```
+
 ## Logs / stop
 
 ```bash
