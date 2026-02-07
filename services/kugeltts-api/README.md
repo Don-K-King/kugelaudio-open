@@ -35,7 +35,7 @@ Copy `.env.example` to `.env` and adjust values as needed:
 cp .env.example .env
 ```
 
-- `KUGEL_MODEL_ID` (default: `/app/models/kugelaudio-0-open`)
+- `KUGEL_MODEL_ID` (default: `/app/models/kugelaudio-0-open`, must contain a `voices/` directory when using local models)
 - `KUGEL_MODEL_DIR` (default: `../../models` on host, mounted to `/app/models`)
 - `KUGEL_ALLOW_HF` (default: `false`)
 - `KUGEL_HF_REPO_ID` (default: `kugelaudio/kugelaudio-0-open`)
@@ -124,7 +124,7 @@ Edit the file (or point `KUGEL_LANGUAGE_REGISTRY_PATH` to another JSON file) to 
 }
 ```
 
-Edit the file (or set `KUGEL_VOICE_REGISTRY_PATH`) to ensure every supported language maps to an existing voice id. Requests for languages not listed in the registries are rejected with HTTP 422.
+Edit the file (or set `KUGEL_VOICE_REGISTRY_PATH`) to ensure every supported language maps to an existing voice id **and** that the corresponding `voices/*.pt` files exist for local model mounts. Requests for languages not listed in the registries are rejected with HTTP 422.
 
 ## Endpoints
 
@@ -153,7 +153,7 @@ Response: `audio/wav` bytes.
 
 ## Compose (Evido network)
 
-This compose file connects to the external `evido-live-translate` network and publishes the API to `127.0.0.1:8020` on the host for local testing.
+This compose file connects to the external `evido-live-translate` network and publishes the API to `127.0.0.1:8020` on the host for local testing. The default service assumes a local model mount at `/app/models` and disables Hugging Face fallback; set `KUGEL_ALLOW_HF=true` and `KUGEL_MODEL_ID` to a repo id if you want to load from Hugging Face instead.
 
 ```bash
 cd services/kugeltts-api
