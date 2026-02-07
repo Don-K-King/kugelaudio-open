@@ -302,6 +302,24 @@ class KugelEngine:
                 + ", ".join(sorted(missing_voices))
             )
 
+        if self.processor.voices_dir:
+            missing_voice_files = []
+            for language, voice in self.voice_registry.mapping.items():
+                voice_info = self.processor.voices_registry.get(voice)
+                if not isinstance(voice_info, dict):
+                    continue
+                voice_file = voice_info.get("file")
+                if not voice_file:
+                    continue
+                voice_path = Path(self.processor.voices_dir) / voice_file
+                if not voice_path.exists():
+                    missing_voice_files.append(f"{language} -> {voice_file}")
+            if missing_voice_files:
+                raise RuntimeError(
+                    "Voice registry references missing voice files: "
+                    + ", ".join(sorted(missing_voice_files))
+                )
+
     def _select_voice(self, normalized_language: Optional[str]) -> str:
         language = normalized_language or self.language_registry.default
         voice = self.voice_registry.get(language)
