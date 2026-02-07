@@ -5,7 +5,7 @@ FastAPI service that exposes KugelAudio TTS on `/v1/audio/speech` with GPU suppo
 ## Architecture notes
 
 - **Local-first model loading**: the service defaults to `local_files_only=True` and expects a model directory mounted at `/app/models`. This avoids any Hugging Face downloads and allows offline startup. If `KUGEL_ALLOW_HF=true`, the service can fall back to a Hugging Face repo when the local path is missing.
-- **GPU pinning**: Docker Compose uses device selection (`gpus.device`) and `NVIDIA_VISIBLE_DEVICES` to restrict GPU visibility inside the container.
+- **GPU pinning**: Docker Compose uses device selection (the `gpus` string with `device=...`) and `NVIDIA_VISIBLE_DEVICES` to restrict GPU visibility inside the container. The compose file requires `NVIDIA_VISIBLE_DEVICES` to be explicitly set (no `all` fallback) to avoid accidental exposure of every GPU.
 - **Security**: the container runs as a non-root user. The default compose file publishes the API on `127.0.0.1:8020` for local testing; adjust or remove the port mapping if you only want internal network access. Hugging Face cache paths must be writable by the container user.
 
 ## Model layout (local, offline)
@@ -46,7 +46,7 @@ cp .env.example .env
 - `TRANSFORMERS_CACHE` (default: `/app/hf-cache/transformers`)
 - `TORCH_DTYPE` (default: `bfloat16`, falls back to `float32` on CPU)
 - `KUGEL_DEVICE` (default: auto-detect; accepted values: `cpu`, `cuda`, `cuda:<index>`; overrides auto-selection)
-- `NVIDIA_VISIBLE_DEVICES` (default: `all`)
+- `NVIDIA_VISIBLE_DEVICES` (required; no default)
 - `KUGEL_MAX_NEW_TOKENS` (default: `4096`)
 - `KUGEL_MAX_INPUT_CHARS` (default: `1000`, maximum characters for `input`)
 - `KUGEL_MAX_REQUEST_BODY_BYTES` (default: `0`, disables request body limit; set to a positive integer to enforce)
@@ -105,7 +105,7 @@ docker compose up -d
 
 ### GPU pinning examples
 
-> Note: GPU pinning is enforced via Compose device selection (`gpus.device`) in `docker-compose.yml`. Setting `NVIDIA_VISIBLE_DEVICES` alone is not sufficient if the Compose file still exposes all GPUs.
+> Note: GPU pinning is enforced via Compose device selection (the `gpus` string with `device=...`) in `docker-compose.yml`. Setting `NVIDIA_VISIBLE_DEVICES` alone is not sufficient if the Compose file still exposes all GPUs, and the compose file now requires `NVIDIA_VISIBLE_DEVICES` to be set.
 
 Pin to the first GPU:
 

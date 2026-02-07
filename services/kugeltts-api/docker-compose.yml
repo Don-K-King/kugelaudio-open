@@ -5,10 +5,9 @@ services:
       dockerfile: services/kugeltts-api/Dockerfile
     image: kugeltts-api:local
     container_name: kugeltts-api
-    gpus:
-      - device: ${NVIDIA_VISIBLE_DEVICES:-all}
+    gpus: "device=${NVIDIA_VISIBLE_DEVICES:?set NVIDIA_VISIBLE_DEVICES in services/kugeltts-api/.env}"
     environment:
-      NVIDIA_VISIBLE_DEVICES: ${NVIDIA_VISIBLE_DEVICES:-all}
+      NVIDIA_VISIBLE_DEVICES: ${NVIDIA_VISIBLE_DEVICES:?set NVIDIA_VISIBLE_DEVICES in services/kugeltts-api/.env}
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
       KUGEL_MODEL_ID: ${KUGEL_MODEL_ID:-/app/models/kugelaudio-0-open}
       KUGEL_ALLOW_HF: ${KUGEL_ALLOW_HF:-false}
