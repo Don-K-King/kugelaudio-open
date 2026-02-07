@@ -39,6 +39,15 @@ def _resolve_dtype(device: str, requested: Optional[str]) -> torch.dtype:
     return mapping.get(requested.lower(), torch.bfloat16)
 
 
+def _path_writable(path: Optional[str]) -> bool:
+    if not path:
+        return False
+    try:
+        return os.access(path, os.W_OK)
+    except OSError:
+        return False
+
+
 class KugelEngine:
     """Loads KugelAudio model + processor and runs synthesis."""
 
@@ -149,11 +158,15 @@ class KugelEngine:
             source_label,
         )
         logger.info(
-            "HF allow=%s, HF_HOME=%s, HF_HUB_CACHE=%s, TRANSFORMERS_CACHE=%s, HF revision=%s",
+            "HF allow=%s, HF_HOME=%s (writable=%s), HF_HUB_CACHE=%s (writable=%s), "
+            "TRANSFORMERS_CACHE=%s (writable=%s), HF revision=%s",
             self.allow_hf,
             os.environ.get("HF_HOME"),
+            _path_writable(os.environ.get("HF_HOME")),
             os.environ.get("HF_HUB_CACHE"),
+            _path_writable(os.environ.get("HF_HUB_CACHE")),
             os.environ.get("TRANSFORMERS_CACHE"),
+            _path_writable(os.environ.get("TRANSFORMERS_CACHE")),
             self.hf_revision or "default",
         )
         logger.info(
