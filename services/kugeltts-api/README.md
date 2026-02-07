@@ -57,10 +57,14 @@ Request:
 ```json
 {
   "input": "text",
+  "language": "de-DE",
   "response_format": "wav",
   "cfg_scale": 3.0
 }
 ```
+
+Notes:
+- `language` is optional and must be a valid BCP-47 tag (e.g., `en`, `de-DE`); invalid tags return HTTP 400.
 
 Response: `audio/wav` bytes.
 
