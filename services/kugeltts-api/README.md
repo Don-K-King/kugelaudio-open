@@ -60,7 +60,32 @@ cp .env.example .env
 ```json
 {
   "default": "default",
-  "supported": ["default", "en"]
+  "supported": [
+    "default",
+    "en",
+    "de",
+    "fr",
+    "es",
+    "it",
+    "pt",
+    "nl",
+    "pl",
+    "ru",
+    "uk",
+    "cs",
+    "ro",
+    "hu",
+    "sv",
+    "da",
+    "fi",
+    "no",
+    "el",
+    "bg",
+    "sk",
+    "hr",
+    "sr",
+    "tr"
+  ]
 }
 ```
 
@@ -73,7 +98,29 @@ Edit the file (or point `KUGEL_LANGUAGE_REGISTRY_PATH` to another JSON file) to 
 ```json
 {
   "default": "default",
-  "en": "default"
+  "en": "default",
+  "de": "default",
+  "fr": "default",
+  "es": "default",
+  "it": "default",
+  "pt": "default",
+  "nl": "default",
+  "pl": "default",
+  "ru": "default",
+  "uk": "default",
+  "cs": "default",
+  "ro": "default",
+  "hu": "default",
+  "sv": "default",
+  "da": "default",
+  "fi": "default",
+  "no": "default",
+  "el": "default",
+  "bg": "default",
+  "sk": "default",
+  "hr": "default",
+  "sr": "default",
+  "tr": "default"
 }
 ```
 
