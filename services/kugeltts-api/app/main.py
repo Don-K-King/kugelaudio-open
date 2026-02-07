@@ -104,9 +104,12 @@ def speech(request: SpeechRequest) -> Response:
     if request.response_format.lower() != "wav":
         raise HTTPException(status_code=400, detail="Only response_format=wav supported")
 
-    audio_bytes = engine.synthesize(
-        request.input,
-        cfg_scale=request.cfg_scale,
-        language=request.language,
-    )
+    try:
+        audio_bytes = engine.synthesize(
+            request.input,
+            cfg_scale=request.cfg_scale,
+            language=request.language,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return Response(content=audio_bytes, media_type="audio/wav")
