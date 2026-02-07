@@ -21,6 +21,12 @@ def _bool_env(name: str, default: bool = False) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _is_writable_path(value: Optional[str]) -> bool:
+    if not value:
+        return False
+    return os.access(value, os.W_OK)
+
+
 def _resolve_dtype(device: str, requested: Optional[str]) -> torch.dtype:
     if device != "cuda":
         return torch.float32
@@ -155,6 +161,16 @@ class KugelEngine:
             os.environ.get("HF_HUB_CACHE"),
             os.environ.get("TRANSFORMERS_CACHE"),
             self.hf_revision or "default",
+        )
+        logger.info(
+            "HF cache writable: HF_HOME=%s (writable=%s), HF_HUB_CACHE=%s (writable=%s), "
+            "TRANSFORMERS_CACHE=%s (writable=%s)",
+            os.environ.get("HF_HOME"),
+            _is_writable_path(os.environ.get("HF_HOME")),
+            os.environ.get("HF_HUB_CACHE"),
+            _is_writable_path(os.environ.get("HF_HUB_CACHE")),
+            os.environ.get("TRANSFORMERS_CACHE"),
+            _is_writable_path(os.environ.get("TRANSFORMERS_CACHE")),
         )
         logger.info(
             "CUDA available=%s, device=%s", torch.cuda.is_available(), self.device

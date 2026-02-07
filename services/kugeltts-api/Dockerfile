@@ -23,6 +23,7 @@ RUN python3 -m venv /opt/venv \
 COPY pyproject.toml README.md /app/
 COPY src/ /app/src/
 COPY services/kugeltts-api/scripts/patch_tokenizer_meta_tensor.py /app/scripts/patch_tokenizer_meta_tensor.py
+COPY services/kugeltts-api/scripts/entrypoint.sh /app/scripts/entrypoint.sh
 RUN python /app/scripts/patch_tokenizer_meta_tensor.py /app/src/kugelaudio_open/models/tokenizer.py \
     && pip install --no-deps -e /app
 
@@ -32,8 +33,8 @@ RUN useradd -m appuser \
     && mkdir -p /app/hf-cache /app/hf-cache/hub /app/hf-cache/transformers \
     && chown -R appuser:appuser /app
 
-USER appuser
-
 EXPOSE 8000
+
+ENTRYPOINT ["/app/scripts/entrypoint.sh"]
 
 CMD ["uvicorn", "app.main:app", "--app-dir", "/app/services/kugeltts-api", "--host", "0.0.0.0", "--port", "8000"]
