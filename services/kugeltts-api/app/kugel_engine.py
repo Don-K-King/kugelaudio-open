@@ -11,6 +11,8 @@ from typing import Optional
 import soundfile as sf
 import torch
 
+from .language_registry import load_language_registry, resolve_language_tag
+
 logger = logging.getLogger(__name__)
 
 
@@ -83,6 +85,7 @@ class KugelEngine:
         self.max_new_tokens = int(os.getenv("KUGEL_MAX_NEW_TOKENS", "4096"))
         self.model = None
         self.processor = None
+        self.language_registry = load_language_registry()
 
     def _configure_hf_env(self, hf_home: Path) -> tuple[Path, Path]:
         hub_dir = hf_home / "hub"
@@ -255,11 +258,22 @@ class KugelEngine:
         self.processor = processor
         logger.info("Model loaded on %s with dtype %s", self.device, self.dtype)
 
-    def synthesize(self, text: str, cfg_scale: float, language: Optional[str] = None) -> bytes:
+    def synthesize(
+        self, text: str, cfg_scale: float, language: Optional[str] = None
+    ) -> bytes:
         if self.model is None or self.processor is None:
             raise RuntimeError("Model not loaded")
 
-        inputs = self.processor(text=text, language=language, return_tensors="pt")
+        resolved_language = resolve_language_tag(language, self.language_registry)
+        if language and resolved_language is None:
+            logger.warning(
+                "Requested language '%s' not supported; falling back to default handling.",
+                language,
+            )
+
+        inputs = self.processor(
+            text=text, language=resolved_language, return_tensors="pt"
+        )
         inputs = {
             k: v.to(self.device) if isinstance(v, torch.Tensor) else v
             for k, v in inputs.items()

@@ -50,6 +50,20 @@ cp .env.example .env
 - `KUGEL_MAX_NEW_TOKENS` (default: `4096`)
 - `KUGEL_MAX_INPUT_CHARS` (default: `1000`, maximum characters for `input`)
 - `KUGEL_MAX_REQUEST_BODY_BYTES` (default: `0`, disables request body limit; set to a positive integer to enforce)
+- `KUGEL_LANGUAGE_REGISTRY_PATH` (default: `services/kugeltts-api/config/language_registry.json` inside the container; JSON registry for supported languages)
+
+### Language registry
+
+`language_registry.json` defines which normalized language tags the service accepts and the default fallback tag:
+
+```json
+{
+  "default": "default",
+  "supported": ["default", "en"]
+}
+```
+
+Edit the file (or point `KUGEL_LANGUAGE_REGISTRY_PATH` to another JSON file) to match the languages supported by your model or tokenizer assets.
 
 ## Endpoints
 
@@ -68,6 +82,8 @@ Request:
 
 Notes:
 - `language` is optional and must be a valid BCP-47 tag (e.g., `en`, `de-DE`); invalid tags return HTTP 400.
+- The service normalizes language tags by trimming whitespace, lowercasing the language subtag, and uppercasing the region subtag (e.g., `DE-de` → `de-DE`).
+- Fallback order: `xx-YY` → `xx` → `default`. Each candidate is used only if it appears in the language registry.
 - `input` is limited to `KUGEL_MAX_INPUT_CHARS` characters; exceeding the limit returns HTTP 422.
 - If `KUGEL_MAX_REQUEST_BODY_BYTES` is set, requests above the limit return HTTP 413 with a clear error message.
 
@@ -161,3 +177,4 @@ docker compose down
 - **Tokenizer assets**: ensure the tokenizer files for the language model are stored locally (or allow HF fallback). Missing files will prevent startup.
 - **Large model checkout**: use Git LFS to avoid partial clone issues and ensure reproducible builds.
 - **GPU availability**: verify `nvidia-smi` works inside the container and that `NVIDIA_VISIBLE_DEVICES` targets the desired GPU UUID or index.
+- **Language registry integrity**: keep `language_registry.json` read-only for the runtime user and validate changes before deploys to avoid unexpected fallback behavior.
