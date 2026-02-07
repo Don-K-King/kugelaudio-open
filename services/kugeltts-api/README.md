@@ -130,6 +130,8 @@ docker compose up -d
 
 The service will create `HF_HOME` automatically and verify it is writable. If the configured cache path is not writable (for example due to a root-owned bind mount), it falls back to `/tmp/hf-cache` with a warning. For persistent cache, prefer a named volume or ensure the host path is owned by the container user.
 
+When using bind mounts for `HF_HOME`, ensure the host path is owned by the container UID/GID (appuser). On startup the container attempts `chown -R appuser:appuser /app/hf-cache`; if ownership cannot be changed, cache initialization either falls back to `/tmp/hf-cache` or fails fast when neither location is writable.
+
 ## Logs / stop
 
 ```bash
