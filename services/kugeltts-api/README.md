@@ -47,6 +47,8 @@ cp .env.example .env
 - `TORCH_DTYPE` (default: `bfloat16`, falls back to `float32` on CPU)
 - `NVIDIA_VISIBLE_DEVICES` (default: `all`)
 - `KUGEL_MAX_NEW_TOKENS` (default: `4096`)
+- `KUGEL_MAX_INPUT_CHARS` (default: `1000`, maximum characters for `input`)
+- `KUGEL_MAX_REQUEST_BODY_BYTES` (default: `0`, disables request body limit; set to a positive integer to enforce)
 
 ## Endpoints
 
@@ -65,6 +67,8 @@ Request:
 
 Notes:
 - `language` is optional and must be a valid BCP-47 tag (e.g., `en`, `de-DE`); invalid tags return HTTP 400.
+- `input` is limited to `KUGEL_MAX_INPUT_CHARS` characters; exceeding the limit returns HTTP 422.
+- If `KUGEL_MAX_REQUEST_BODY_BYTES` is set, requests above the limit return HTTP 413 with a clear error message.
 
 Response: `audio/wav` bytes.
 
