@@ -25,6 +25,14 @@ class LanguageRegistry:
         return tag in self.supported
 
 
+@dataclass(frozen=True)
+class VoiceRegistry:
+    mapping: dict[str, str]
+
+    def get(self, tag: str) -> Optional[str]:
+        return self.mapping.get(tag)
+
+
 def _normalize_registry_tag(tag: str) -> str:
     normalized = normalize_language_tag(tag)
     if normalized is None:
@@ -100,7 +108,10 @@ def normalize_language_tag(value: Optional[str]) -> Optional[str]:
 
 
 def resolve_language_tag(
-    value: Optional[str], registry: LanguageRegistry
+    value: Optional[str],
+    registry: LanguageRegistry,
+    *,
+    allow_default_fallback: bool = True,
 ) -> Optional[str]:
     normalized = normalize_language_tag(value)
     if normalized is None:
@@ -114,7 +125,43 @@ def resolve_language_tag(
         if registry.supports(base):
             return base
 
-    if registry.supports(registry.default):
+    if allow_default_fallback and registry.supports(registry.default):
         return registry.default
 
     return None
+
+
+def load_voice_registry(path: Optional[Path] = None) -> VoiceRegistry:
+    registry_path = path or Path(
+        os.getenv(
+            "KUGEL_VOICE_REGISTRY_PATH",
+            Path(__file__).resolve().parent / "voice_registry.json",
+        )
+    )
+    try:
+        payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise RuntimeError(
+            f"Voice registry not found at {registry_path}. "
+            "Set KUGEL_VOICE_REGISTRY_PATH or provide the default file."
+        ) from exc
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Voice registry JSON is invalid: {registry_path}") from exc
+
+    if not isinstance(payload, dict) or not payload:
+        raise RuntimeError("Voice registry must be a non-empty JSON object.")
+
+    normalized: dict[str, str] = {}
+    for language, voice in payload.items():
+        if not isinstance(language, str) or not language.strip():
+            raise RuntimeError("Voice registry languages must be non-empty strings.")
+        if not isinstance(voice, str) or not voice.strip():
+            raise RuntimeError("Voice registry voice ids must be non-empty strings.")
+        normalized_language = normalize_language_tag(language)
+        if normalized_language is None:
+            raise RuntimeError(
+                "Voice registry languages must be valid BCP-47 tags or 'default'."
+            )
+        normalized[normalized_language] = voice.strip()
+
+    return VoiceRegistry(mapping=normalized)

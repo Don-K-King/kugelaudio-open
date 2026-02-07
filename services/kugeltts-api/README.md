@@ -51,6 +51,7 @@ cp .env.example .env
 - `KUGEL_MAX_INPUT_CHARS` (default: `1000`, maximum characters for `input`)
 - `KUGEL_MAX_REQUEST_BODY_BYTES` (default: `0`, disables request body limit; set to a positive integer to enforce)
 - `KUGEL_LANGUAGE_REGISTRY_PATH` (default: `services/kugeltts-api/config/language_registry.json` inside the container; JSON registry for supported languages)
+- `KUGEL_VOICE_REGISTRY_PATH` (default: `services/kugeltts-api/app/voice_registry.json` inside the container; maps supported languages to voice ids)
 
 ### Language registry
 
@@ -64,6 +65,19 @@ cp .env.example .env
 ```
 
 Edit the file (or point `KUGEL_LANGUAGE_REGISTRY_PATH` to another JSON file) to match the languages supported by your model or tokenizer assets.
+
+### Voice registry
+
+`voice_registry.json` maps each supported language tag to a voice id from `voices.json`. Only languages listed in the language registry **and** the voice registry are accepted.
+
+```json
+{
+  "default": "default",
+  "en": "default"
+}
+```
+
+Edit the file (or set `KUGEL_VOICE_REGISTRY_PATH`) to ensure every supported language maps to an existing voice id. Requests for languages not listed in the registries are rejected with HTTP 422.
 
 ## Endpoints
 
@@ -83,7 +97,8 @@ Request:
 Notes:
 - `language` is optional and must be a valid BCP-47 tag (e.g., `en`, `de-DE`); invalid tags return HTTP 400.
 - The service normalizes language tags by trimming whitespace, lowercasing the language subtag, and uppercasing the region subtag (e.g., `DE-de` → `de-DE`).
-- Fallback order: `xx-YY` → `xx` → `default`. Each candidate is used only if it appears in the language registry.
+- **Only languages listed in the registries are supported.** Requests for unsupported languages return HTTP 422.
+- Fallback order: `xx-YY` → `xx` → `default`. Each candidate is used only if it appears in the language registry and has a voice mapping.
 - `input` is limited to `KUGEL_MAX_INPUT_CHARS` characters; exceeding the limit returns HTTP 422.
 - If `KUGEL_MAX_REQUEST_BODY_BYTES` is set, requests above the limit return HTTP 413 with a clear error message.
 

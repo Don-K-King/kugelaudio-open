@@ -11,7 +11,11 @@ from typing import Optional
 import soundfile as sf
 import torch
 
-from .language_registry import load_language_registry, resolve_language_tag
+from .language_registry import (
+    load_language_registry,
+    load_voice_registry,
+    resolve_language_tag,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +90,7 @@ class KugelEngine:
         self.model = None
         self.processor = None
         self.language_registry = load_language_registry()
+        self.voice_registry = load_voice_registry()
 
     def _configure_hf_env(self, hf_home: Path) -> tuple[Path, Path]:
         hub_dir = hf_home / "hub"
@@ -256,7 +261,53 @@ class KugelEngine:
 
         self.model = model
         self.processor = processor
+        self._validate_voice_registry()
         logger.info("Model loaded on %s with dtype %s", self.device, self.dtype)
+
+    def _validate_voice_registry(self) -> None:
+        if self.processor is None:
+            raise RuntimeError("Processor not loaded")
+
+        available_voices = set(self.processor.get_available_voices())
+        missing_languages = [
+            language
+            for language in self.language_registry.supported
+            if language not in self.voice_registry.mapping
+        ]
+        if missing_languages:
+            raise RuntimeError(
+                "Voice registry missing languages: "
+                + ", ".join(sorted(missing_languages))
+            )
+
+        extra_languages = [
+            language
+            for language in self.voice_registry.mapping
+            if language not in self.language_registry.supported
+        ]
+        if extra_languages:
+            raise RuntimeError(
+                "Voice registry contains unsupported languages: "
+                + ", ".join(sorted(extra_languages))
+            )
+
+        missing_voices = [
+            f"{language} -> {voice}"
+            for language, voice in self.voice_registry.mapping.items()
+            if voice not in available_voices
+        ]
+        if missing_voices:
+            raise RuntimeError(
+                "Voice registry references unknown voices: "
+                + ", ".join(sorted(missing_voices))
+            )
+
+    def _select_voice(self, normalized_language: Optional[str]) -> str:
+        language = normalized_language or self.language_registry.default
+        voice = self.voice_registry.get(language)
+        if voice is None:
+            raise ValueError(f"Language '{language}' is not supported.")
+        return voice
 
     def synthesize(
         self, text: str, cfg_scale: float, language: Optional[str] = None
@@ -264,15 +315,24 @@ class KugelEngine:
         if self.model is None or self.processor is None:
             raise RuntimeError("Model not loaded")
 
-        resolved_language = resolve_language_tag(language, self.language_registry)
+        resolved_language = resolve_language_tag(
+            language,
+            self.language_registry,
+            allow_default_fallback=language is None,
+        )
         if language and resolved_language is None:
-            logger.warning(
-                "Requested language '%s' not supported; falling back to default handling.",
-                language,
-            )
+            raise ValueError(f"Language '{language}' is not supported.")
+
+        normalized_language = (
+            resolved_language if resolved_language is not None else self.language_registry.default
+        )
+        voice = self._select_voice(normalized_language)
 
         inputs = self.processor(
-            text=text, language=resolved_language, return_tensors="pt"
+            text=text,
+            language=normalized_language,
+            voice=voice,
+            return_tensors="pt",
         )
         inputs = {
             k: v.to(self.device) if isinstance(v, torch.Tensor) else v
