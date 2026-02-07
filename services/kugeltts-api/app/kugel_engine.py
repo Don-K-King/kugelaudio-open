@@ -226,11 +226,11 @@ class KugelEngine:
         self.processor = processor
         logger.info("Model loaded on %s with dtype %s", self.device, self.dtype)
 
-    def synthesize(self, text: str, cfg_scale: float) -> bytes:
+    def synthesize(self, text: str, cfg_scale: float, language: Optional[str] = None) -> bytes:
         if self.model is None or self.processor is None:
             raise RuntimeError("Model not loaded")
 
-        inputs = self.processor(text=text, return_tensors="pt")
+        inputs = self.processor(text=text, language=language, return_tensors="pt")
         inputs = {
             k: v.to(self.device) if isinstance(v, torch.Tensor) else v
             for k, v in inputs.items()

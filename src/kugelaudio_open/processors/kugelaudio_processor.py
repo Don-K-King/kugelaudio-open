@@ -222,6 +222,7 @@ class KugelAudioProcessor:
     def __call__(
         self,
         text: Optional[str] = None,
+        language: Optional[str] = None,
         voice: Optional[str] = None,
         voice_cache: Optional[dict] = None,
         padding: Union[bool, str, PaddingStrategy] = True,
@@ -237,6 +238,7 @@ class KugelAudioProcessor:
 
         Args:
             text: Input text to synthesize
+            language: Optional BCP-47 language tag to guide synthesis
             voice: Name of a pre-encoded voice (from voices.json registry)
             voice_cache: Pre-encoded voice features dict (alternative to voice name)
             padding: Padding strategy
@@ -270,6 +272,14 @@ class KugelAudioProcessor:
         system_tokens = self.tokenizer.encode(system_prompt, add_special_tokens=False)
         full_tokens.extend(system_tokens)
         speech_input_mask.extend([False] * len(system_tokens))
+
+        # Optional language hint (kept short and structured for model conditioning)
+        if language:
+            language_hint = self.tokenizer.encode(
+                f" Language: {language}\n", add_special_tokens=False
+            )
+            full_tokens.extend(language_hint)
+            speech_input_mask.extend([False] * len(language_hint))
 
         # Load voice cache from registry if voice name is provided
         loaded_voice_cache = voice_cache
