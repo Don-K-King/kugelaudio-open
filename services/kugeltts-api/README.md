@@ -45,6 +45,7 @@ cp .env.example .env
 - `HF_HUB_CACHE` (default: `/app/hf-cache/hub`)
 - `TRANSFORMERS_CACHE` (default: `/app/hf-cache/transformers`)
 - `TORCH_DTYPE` (default: `bfloat16`, falls back to `float32` on CPU)
+- `KUGEL_DEVICE` (default: auto-detect; accepted values: `cpu`, `cuda`, `cuda:<index>`; overrides auto-selection)
 - `NVIDIA_VISIBLE_DEVICES` (default: `all`)
 - `KUGEL_MAX_NEW_TOKENS` (default: `4096`)
 - `KUGEL_MAX_INPUT_CHARS` (default: `1000`, maximum characters for `input`)
@@ -108,6 +109,12 @@ Pin to the first GPU:
 
 ```bash
 NVIDIA_VISIBLE_DEVICES=0 docker compose up -d
+```
+
+Force device selection inside the container (ensure it matches `NVIDIA_VISIBLE_DEVICES`):
+
+```bash
+KUGEL_DEVICE=cuda:0 docker compose up -d
 ```
 
 Pin to a specific GPU UUID:

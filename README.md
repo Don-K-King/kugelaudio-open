@@ -276,7 +276,7 @@ For production deployment (GPU + Docker + Evido network integration), use the Fa
 services/kugeltts-api/
 ```
 
-The service is local-first (no Hugging Face downloads by default), exposes `/health` and `/v1/audio/speech`, and supports GPU pinning via `NVIDIA_VISIBLE_DEVICES`. See the service README for setup, environment variables, and compose usage:
+The service is local-first (no Hugging Face downloads by default), exposes `/health` and `/v1/audio/speech`, supports GPU pinning via `NVIDIA_VISIBLE_DEVICES`, and allows explicit device overrides via `KUGEL_DEVICE` (`cpu`, `cuda`, `cuda:<index>`). See the service README for setup, environment variables, and compose usage:
 
 - `services/kugeltts-api/README.md`
 

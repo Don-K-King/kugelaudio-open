@@ -28,7 +28,7 @@ def _is_writable_path(value: Optional[str]) -> bool:
 
 
 def _resolve_dtype(device: str, requested: Optional[str]) -> torch.dtype:
-    if device != "cuda":
+    if not device.startswith("cuda"):
         return torch.float32
 
     if not requested:
@@ -45,6 +45,21 @@ def _resolve_dtype(device: str, requested: Optional[str]) -> torch.dtype:
     return mapping.get(requested.lower(), torch.bfloat16)
 
 
+def _resolve_device(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    normalized = value.strip().lower()
+    if normalized == "cpu":
+        return "cpu"
+    if normalized == "cuda":
+        return "cuda"
+    if normalized.startswith("cuda:"):
+        suffix = normalized.split("cuda:", 1)[1]
+        if suffix.isdigit():
+            return f"cuda:{suffix}"
+    return None
+
+
 class KugelEngine:
     """Loads KugelAudio model + processor and runs synthesis."""
 
@@ -53,7 +68,16 @@ class KugelEngine:
         self.hf_repo_id = os.getenv("KUGEL_HF_REPO_ID", "kugelaudio/kugelaudio-0-open")
         self.hf_home = os.getenv("HF_HOME", "/app/hf-cache")
         self.hf_revision = os.getenv("KUGEL_HF_REVISION") or None
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        requested_device = _resolve_device(os.getenv("KUGEL_DEVICE"))
+        if requested_device is None and os.getenv("KUGEL_DEVICE"):
+            logger.error(
+                "Invalid KUGEL_DEVICE=%s; expected cpu, cuda, or cuda:<index>. Falling back to auto.",
+                os.getenv("KUGEL_DEVICE"),
+            )
+        if requested_device:
+            self.device = requested_device
+        else:
+            self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.dtype = _resolve_dtype(self.device, os.getenv("TORCH_DTYPE"))
         self.allow_hf = _bool_env("KUGEL_ALLOW_HF", False)
         self.max_new_tokens = int(os.getenv("KUGEL_MAX_NEW_TOKENS", "4096"))
@@ -175,9 +199,14 @@ class KugelEngine:
         logger.info(
             "CUDA available=%s, device=%s", torch.cuda.is_available(), self.device
         )
-        if self.device == "cuda":
+        if self.device.startswith("cuda"):
             try:
-                logger.info("CUDA device name=%s", torch.cuda.get_device_name(0))
+                cuda_index = torch.device(self.device).index or 0
+                logger.info(
+                    "CUDA device name (index=%s)=%s",
+                    cuda_index,
+                    torch.cuda.get_device_name(cuda_index),
+                )
             except Exception as exc:
                 logger.warning("Failed to read CUDA device name: %s", exc)
 
@@ -191,7 +220,7 @@ class KugelEngine:
         if self.hf_revision and not local_files_only:
             model_kwargs["revision"] = self.hf_revision
 
-        if self.device == "cuda":
+        if self.device.startswith("cuda"):
             model_kwargs["attn_implementation"] = "flash_attention_2"
 
         try:
